@@ -2,7 +2,7 @@ import cab320_search
 
 import cab320_sokoban
 
-
+import time, math
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(cab320_search.Problem):
@@ -14,83 +14,77 @@ class SokobanPuzzle(cab320_search.Problem):
     def __init__(self, puzzleFileName):
         self.warehouse = cab320_sokoban.Warehouse()
         self.warehouse.read_warehouse_file(puzzleFileName)
-        self.walls = warehouse.walls
-        self.worker = warehouse.worker
-        self.boxes = warehouse.boxes
-        self.targets = warehouse.targets
+        self.taboo = tabooTuple(self.warehouse.walls,self.warehouse.targets)
+        self.initial = (self.warehouse.worker,tuple(self.warehouse.boxes))
 
-        X,Y = zip(*self.warehouse.walls)
-        self.x_size = 1+max(X)
-        self.y_size = 1+max(Y)
-
-        self.taboo = tabooTup()
-        self.initial = (tuple(self.worker),tuple(self.boxes))
-
-    '''
-    def __init__(self, puzzleFileName):
-        self.myWare = cab320_sokoban.Warehouse()
-        self.myWare.read_warehouse_file(puzzleFileName)
-        self.walls = myWare.walls
-        self.targets = myWare.targets
-        self.worker = myWare.worker
-        self.boxes = myWare.boxes
-        self.taboo = []
-        self.static_taboo_corners()
-        # get taboo cells
-    '''
     def goal_test(self,state):
         """Return True if the state is a goal. The default method compares the
         state to self.goal, as specified in the constructor. Override this
         method if checking against a single self.goal is not enough."""
-        return set(self.targets)==set(state[1])
+        # print "In Goal_Test: targets"
+        # print set(self.warehouse.targets)
+        # print set(state[1])
+        return set(self.warehouse.targets)==set(state[1])
 
     def actions(self, state):
         """
         Return the actions that can be executed in the given
         state.
         """
-        emptyCells = []
+        # print "In Action:"
         worker = state[0]
         boxes = state[1]
         walls = self.warehouse.walls
-        taboo = self.warehouse.taboo
+        taboo = self.taboo
 
-        directions = {(0, -1):'Up',(0, 1):'Down',(-1, 0):'Left',(1, 0):'Right'}
-
-        for coords in directions.keys():
-                newCoord = addTuples(coords,worker)
-                if(newCoord not in walls and newCoord not in boxes):
-                        emptyCells.append(directions.get(coords))
-                elif newCoord in boxes:
-                        extendedCoord = addTuples(coords,coords)
-                        extendedNewCoord = addTuples(extendedCoord,worker)
-                        if (extendedNewCoord not in boxes) and (extendedNewCoord not in walls) and (extendedNewCoord not in taboo):
-                                emptyCells.append(directions.get(coords))
-
-
-        return emptyCells
-
+        possibleMoves = {(0, -1):'Up',(0, 1):'Down',(-1, 0):'Left',(1, 0):'Right'}
+        legalMoves = []
+        for direction in possibleMoves.keys():
+            checkPos = addCoords(direction,worker)
+            if checkPos not in walls and checkPos not in boxes:
+                legalMoves.append(possibleMoves[direction])
+            if checkPos in boxes:
+                checkPos = addCoords(direction,checkPos)
+                # print list(boxes),taboo,walls
+                if checkPos not in list(boxes)+taboo+walls:
+                    legalMoves.append(possibleMoves[direction])
+        # print "Legal Moves = ",legalMoves
+        return legalMoves
     def result(self, state, action):
-        """Return the state that results from executing the given
+        """
+        Return the state that results from executing the given
         action in the given state. The action must be one of
         self.actions(state).
         """
         assert action in self.actions(state)
         worker = state[0]
-        boxes = list(state[1])
+        boxes = state[1]
+        newState = []
+        possibleMoves = {'Up':(0, -1),'Down':(0, 1),'Left':(-1, 0),'Right':(1, 0)}
+        # print "In Result:"
+        # print "action = ",action
+        # print "possibleMoves[action] = ",possibleMoves[action]
+        worker = addCoords(worker,possibleMoves[action])
+        newBoxes = []
+        # print "In Result"
+        for box in boxes:
+            tempBox = box
+            print worker,box
+            if worker == box:
+                print "Do I ever reach here"
+                print box,action
+                tempBox = addCoords(box,possibleMoves[action])
+            newBoxes.append(tempBox)
 
-        coords = {(0, -1):'Up',(0, 1):'Down',(-1, 0):'Left',(1, 0):'Right'}
-        move = coords.get(action)
-        new_pos = addTuples(worker,move)
-        if new_pos in boxes:
-                #move box
-                box_index = boxes.index(new_pos)
-                boxes[box_index] = addTuples(new_pos,move)
-                #move player
+        # print "In Result: newState"
+        # print worker,tuple(newBoxes)
+        newState.append(tuple(worker))
+        newState.append(tuple(newBoxes))
+        # print "newState = ", newState
+        # print "newState[0] = ", newState[0]
+        # print "newState[1] = ", newState[1]
+        return (worker,tuple(newBoxes))
 
-        worker = new_pos
-
-        return (worker,tuple(boxes))
 
     def path_cost(self,c,state1,action,state2):
         """Return the cost of a solution path that arrives at state2 from
@@ -111,13 +105,13 @@ class SokobanPuzzle(cab320_search.Problem):
         # to the goal_node
         path = goal_node.path()
         # print the solution
-        print "Solution takes {0} steps from the initial state".format(len(path)-1)
-        self.worker = path[0].state[0]
-        self.boxes = path[0].state[1]
+        print "Solution takes {0} steps from the initial state\n".format(len(path)-1)
+        self.warehouse.worker = path[0].state[0]
+        self.warehouse.boxes = path[0].state[1]
         print self.warehouse.visualize()
-        print "to the goal state"
-        self.worker = path[-1].state[0]
-        self.boxes = path[-1].state[1]
+        print "to the goal state\n"
+        self.warehouse.worker = path[-1].state[0]
+        self.warehouse.boxes = path[-1].state[1]
         print self.warehouse.visualize()
         print "Below is the sequence of moves\n"
         actionSequence = []
@@ -130,22 +124,32 @@ class SokobanPuzzle(cab320_search.Problem):
         h = 0
         worker = node.state[0]
         boxes = node.state[1]
-        #targets = self.warehouse.targets
         for box in boxes:
-            closestGoal = closestGoal(box,self.targets)
+            closestGoal = closestPosition(box,self.warehouse.targets)
+            # print "Calculating for box: ", box
+            # print "Goal list ", self.warehouse.targets
+            # print "closest Goal = ", closestGoal
             h = h + manhattanDistance(box,closestGoal)
-        return cost
+        closestBox = closestPosition(worker,boxes)
+        return h + manhattanDistance(closestBox,worker)
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def closestGoal(box,targets):
-    distance = []
+def closestPosition(pos1,targets):
+    distance = 100000
+    closest = []
     for target in targets:
-        distance.append(manhattanDistance(box,target))
-    return min(distance)
+        newDistance = manhattanDistance(pos1,target)
+        if distance > newDistance:
+            closest = target
+            distance = newDistance
+    return closest
 
 def manhattanDistance(p1,p2):
-    return math.fabs((p1[0]-p2[0])) + math.fabs((p1[1]-p2[1]))
+    # print "Inside manhattanDistance",
+    # print p1,p2
+    # print p1[0], p1[1], p2[0], p2[1]
+    return abs((p1[0]-p2[0])) + abs((p1[1]-p2[1]))
 
 def checkActions(puzzleFileName, actionSequence):
     '''
@@ -168,17 +172,28 @@ def checkActions(puzzleFileName, actionSequence):
                string returned by the method  WarehouseHowever.visualize()
     '''
 
-    p = SokobanPuzzle(puzzleFileName)
+    puzzle = SokobanPuzzle(puzzleFileName)
+
     for action in actionSequence:
             new_action = action[0]
-            if new_action not in p.actions(p.warehouse):
+            if new_action not in puzzle.actions(puzzle.warehouse):
                     return 'Failure'
-            p.warehouse = p.result(p.warehouse,new_action)
+            puzzle.warehouse = puzzle.result(puzzle.warehouse,new_action)
 
-    return p.warehouse.visualize()
+    return puzzle.warehouse.visualize()
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def addCoords(pos1,pos2):
+    '''
+    Adds 2 tuples together resulting in a new position
+    pos1: tuple of form (x1,y1)
+    pos2: tuple of form (x2,y2)
+    return: tuple of form(x1+x2,y1+y2)
+    '''
+    # print "In addCoords:"
+    # print pos1,pos2
+    return tuple(p+q for p,q in zip(pos1,pos2))
 
 def tabooCells(puzzleFileName):
     '''
@@ -250,7 +265,6 @@ def static_taboo_corners(walls,targets):
                 taboo.append(tuple((x-1,y)))
             if(x,y-1) not in taboo:
                 taboo.append(tuple((x,y-1)))
-    print taboo
     removeTab = []
     for (x,y) in taboo:
         if (x,y) in walls:
@@ -264,19 +278,21 @@ def static_taboo_corners(walls,targets):
 def static_taboo_line(taboo,walls):
     taboo = []
     for tab1 in taboo:
-        for tab2 in taboo if tab1 is not tab2:
-            line = isInLine()
-            if line is 'y':
-                if checkFreedom(tab1,tab2):
+        for tab2 in taboo:
+            if tab1 is not tab2:
+                line = isInLine()
+                if line is 'y':
+                    if checkFreedom(tab1,tab2):
+                        return 'none'
 
 def checkFreedom(pos1,pos2,direction):
     side1 = 0
     side2 = 0
-    if direction is 'y'
+    if direction is 'y':
         if pos1[0] > pos2[0]:
             pos1,pos2 = pos2,pos1
-        for i in range(pos1[0]+1 pos2[0]):
-            if ()
+        for i in range(pos1[0]+1, pos2[0]):
+            return 'none'
 
 def isInLine(pos1,pos2):
     if pos1[0] is pos2[0]:
@@ -340,43 +356,37 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def test():
-        import os, re
-        startAt = ['warehouse_02.txt']
-        skip = [] #skip = ['warehouse_5.txt', 'warehouse_7.txt', 'warehouse_33.txt', 'warehouse_35.txt', 'warehouse_59.txt']
-        warehouseFiles = [f for f in os.listdir('warehouses/')]
-        warehouseFiles.sort(key=lambda var:[int(x) if x.isdigit() else x for x in re.findall(r'[^0-9]|[0-9]+', var)])
+def runSolver():
+    puzzle = SokobanPuzzle('warehouses/warehouse_01.txt')
+    # print puzzle.warehouse.visualize()
+    # print "Initial State:"
+    # print puzzle.initial
+    # print "Legal Actions:"
+    # print puzzle.actions(puzzle.initial)
+    # print "Results: "
+    # step1 = puzzle.result(puzzle.initial,"Right")
+    # print step1
+    # print "Step 1 action:"
+    # step2 = puzzle.actions(step1)
+    # print step2
+    # print "Custom State"
+    # state = ((8,3),((7,3),(7,4)))
+    # print puzzle.actions(state)
+    # print "Custom State Left Result"
+    # print puzzle.result(state,"Left")
+    t0 = time.time()
+    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    t_final = time.time() - t0
 
-        if len(startAt) is 1:
-                index = warehouseFiles.index(startAt[0])
-                if index is not None:
-                        warehouseFiles = warehouseFiles[index:]
-
-        for level in warehouseFiles:
-                if level in skip:
-                        continue
-                p = SokobanPuzzle('warehouses/'+level)
-                print '------------------------------------------------------'
-                print 'Running solver on '+level+'...'
-                #print(p.warehouse.visualize())
-                t0 = time.time()
-
-                #sol_ts = breadth_first_tree_search(p)
-                sol_ts = astar_search(p,lambda n:p.heuristic(n))
-
-                t1 = time.time()
-
-                p.print_solution_simple(sol_ts)
-                print "Solver took ",t1-t0, ' seconds'
+    puzzle.print_solution(sol)
+    print "Solution:"
+    print puzzle.warehouse.boxes
+    print puzzle.warehouse.targets
+    print "Solver took ",t_final, ' seconds'
 
 
 if __name__ == "__main__":
-    #test()
-    filename = 'warehouses/warehouse_03.txt'
-    myWare = cab320_sokoban.Warehouse()
-    myWare.read_warehouse_file(filename)
-    walls = myWare.walls
-    targets = myWare.targets
-    taboo = tabooCells(filename)
-    print myWare.visualize()
-    print taboo
+    runSolver()
+    # testTup1 = (1,1)
+    # testTup2 = (5,4)
+    # print addCoords(testTup1,testTup2)
