@@ -1,8 +1,10 @@
 import cab320_search
 
 import cab320_sokoban
+import thread
+import threading
+import time, os, multiprocessing
 
-import time, os
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(cab320_search.Problem):
@@ -21,17 +23,19 @@ class SokobanPuzzle(cab320_search.Problem):
         """Return True if the state is a goal. The default method compares the
         state to self.goal, as specified in the constructor. Override this
         method if checking against a single self.goal is not enough."""
-        # print "In Goal_Test: targets"
-        # print set(self.warehouse.targets)
-        # print set(state[1])
         return set(self.warehouse.targets)==set(state[1])
 
     def actions(self, state):
         """
-        Return the actions that can be executed in the given
-        state.
+        Builds a list of actions that can be taken from a given state. Actions
+        are string variables that correspond to cardinal directions possible
+        for the worker to move.
+        state: tuple list of form ((x_w,y_w),((x1,y1),(x2,y2)...(xn,yn)))
+        state[0] corresponds to the worker location
+        state[1] corresponds to a list of box locations
+        returns: string list of possible directions to move the worker
+        ['Left','Right','Up','Down']
         """
-        # print "In Action:"
         worker = state[0]
         boxes = state[1]
         walls = self.warehouse.walls
@@ -45,11 +49,10 @@ class SokobanPuzzle(cab320_search.Problem):
                 legalMoves.append(possibleMoves[direction])
             if checkPos in boxes:
                 checkPos = addCoords(direction,checkPos)
-                # print list(boxes),taboo,walls
                 if checkPos not in list(boxes)+taboo+walls:
                     legalMoves.append(possibleMoves[direction])
-        # print "Legal Moves = ",legalMoves
         return legalMoves
+
     def result(self, state, action):
         """
         Return the state that results from executing the given
@@ -61,28 +64,14 @@ class SokobanPuzzle(cab320_search.Problem):
         boxes = state[1]
         newState = []
         possibleMoves = {'Up':(0, -1),'Down':(0, 1),'Left':(-1, 0),'Right':(1, 0)}
-        # print "In Result:"
-        # print "action = ",action
-        # print "possibleMoves[action] = ",possibleMoves[action]
         worker = addCoords(worker,possibleMoves[action])
         newBoxes = []
-        # print "In Result"
         for box in boxes:
             tempBox = box
-            # print worker,box
             if worker == box:
-                # print "Do I ever reach here"
-                # print box,action
                 tempBox = addCoords(box,possibleMoves[action])
             newBoxes.append(tempBox)
 
-        # print "In Result: newState"
-        # print worker,tuple(newBoxes)
-        newState.append(tuple(worker))
-        newState.append(tuple(newBoxes))
-        # print "newState = ", newState
-        # print "newState[0] = ", newState[0]
-        # print "newState[1] = ", newState[1]
         return (worker,tuple(newBoxes))
 
 
@@ -100,11 +89,7 @@ class SokobanPuzzle(cab320_search.Problem):
             For example, goal node could be obtained by calling
                 goal_node = breadth_first_tree_search(problem)
         """
-
-        # path is list of nodes from initial state (root of the tree)
-        # to the goal_node
         path = goal_node.path()
-        # print the solution
         print "Solution takes {0} steps from the initial state\n".format(len(path)-1)
         self.warehouse.worker = path[0].state[0]
         self.warehouse.boxes = path[0].state[1]
@@ -114,29 +99,39 @@ class SokobanPuzzle(cab320_search.Problem):
         self.warehouse.boxes = path[-1].state[1]
         print self.warehouse.visualize()
         print "Below is the sequence of moves\n"
+
+        print self.return_path(path)
+
+    def return_path(self,path):
         actionSequence = []
         for node in path:
             if node.action is not None:
                 actionSequence.append(node.action)
-        print actionSequence
+        return actionSequence
 
     def h(self,node):
         h = 0
         worker = node.state[0]
         boxes = node.state[1]
+        targets = self.warehouse.targets
         for box in boxes:
-            closestGoal = closestPosition(box,self.warehouse.targets)
-            # print "Calculating for box: ", box
-            # print "Goal list ", self.warehouse.targets
-            # print "closest Goal = ", closestGoal
-            h = h + manhattanDistance(box,closestGoal)
+            if box not in targets:
+                closestGoal = closestPosition(box,targets)
+                h = h + manhattanDistance(box,closestGoal)
         closestBox = closestPosition(worker,boxes)
         return h + manhattanDistance(closestBox,worker)
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def closestPosition(pos1,targets):
-    distance = 100000
+    '''
+    Finds the closest position amongst a list of possible targets and a given
+    position
+    pos1: tuple of form (x,y)
+    targets: list of tuples of form ((x1,y1),(x2,y2),..(xn,yn))
+    return: closest tuple pair between pos1 and targets via manhattan distance
+    '''
+    distance = 10000000 #start with impossible number and then reduce
     closest = []
     for target in targets:
         newDistance = manhattanDistance(pos1,target)
@@ -145,11 +140,14 @@ def closestPosition(pos1,targets):
             distance = newDistance
     return closest
 
-def manhattanDistance(p1,p2):
-    # print "Inside manhattanDistance",
-    # print p1,p2
-    # print p1[0], p1[1], p2[0], p2[1]
-    return abs((p1[0]-p2[0])) + abs((p1[1]-p2[1]))
+def manhattanDistance(pos1,pos2):
+    '''
+    Finds the manhattan distance between 2 tuple pairs
+    pos1: tuple of form (x1,y2)
+    pos2: tuple of form (x1,y2)
+    returns: manhattan distance |x1-x2| + |y1-y2|
+    '''
+    return abs((pos1[0]-pos2[0])) + abs((pos1[1]-pos2[1]))
 
 def checkActions(puzzleFileName, actionSequence):
     '''
@@ -171,7 +169,6 @@ def checkActions(puzzleFileName, actionSequence):
                the sequence of actions.  This should be the same string as the
                string returned by the method  WarehouseHowever.visualize()
     '''
-
     puzzle = SokobanPuzzle(puzzleFileName)
 
     for action in actionSequence:
@@ -191,8 +188,6 @@ def addCoords(pos1,pos2):
     pos2: tuple of form (x2,y2)
     return: tuple of form(x1+x2,y1+y2)
     '''
-    # print "In addCoords:"
-    # print pos1,pos2
     return tuple(p+q for p,q in zip(pos1,pos2))
 
 def tabooCells(puzzleFileName):
@@ -221,6 +216,15 @@ def tabooCells(puzzleFileName):
     return "".join(tabooVis)
 
 def tabooTuple(walls,targets):
+    '''
+    Builds a list of taboo cells from a given list of walls and targets using
+    the static_taboo_corners and static_taboo_line functions to generate taboo
+    cells.
+    walls: tuple list of walls of form ((x1,y1),(x2,y2),..(xn,yn))
+    targets: tuple list of targets of form ((x1,y1),(x2,y2),..(xn,yn))
+    returns: list of tuples deemed as taboo of the form
+    ((x1,y1),(x2,y2),..(xn,yn))
+    '''
     taboo = static_taboo_corners(walls,targets)
     #implement taboo line function and append that to taboo
     return taboo
@@ -233,15 +237,15 @@ def static_taboo_corners(walls,targets):
     a diagonal position, it marks the shared positions between the two as
     a taboo cell. If the corner cell is a target state, it does not set as taboo
     Examples denoted below where # is a wall, and X is taboo cell, . is goal
-     ###X##########
-     #XX#X   X#. .#
-     #X          ##
-     #############X
-     inputs:
-     walls: tuple list of (x,y) coordinates
-     targets: tuple list of (x,y) coordinates
-     returns:
-     taboo: tuple list of (x,y) coordinates
+    ###X##########
+    #XX#X   X#. .#
+    #X          ##
+    #############X
+    inputs:
+    walls: tuple list of (x,y) coordinates
+    targets: tuple list of (x,y) coordinates
+    returns:
+    taboo: tuple list of (x,y) coordinates
     '''
     taboo = []
     for (x,y) in walls:
@@ -316,10 +320,23 @@ def solveSokoban_elementary(puzzleFileName, timeLimit = None):
             For example, ['Left', 'Down', Down','Right', 'Up', 'Down']
             If the puzzle is already in a goal state, simply return []
     '''
+    puzzle = SokobanPuzzle(puzzleFileName)
+    if(puzzle.goal_test(puzzle.initial)):
+        return []
+    if timeLimit is None:
+        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
 
-##         "INSERT YOUR CODE HERE"
+    timer = threading.Timer(timeLimit,thread.interrupt_main)
+    try:
+        timer.start()
+        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    except:
+        timer.cancel()
+        return ['Timeout']
+    timer.cancel()
 
-    raise NotImplementedError()
+    return puzzle.return_path(sol.path())
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -367,7 +384,10 @@ def runSolver():
         print "Solver took ",t_final, ' seconds'
         puzzle.print_solution(sol)
 
-
-
+def test_elementary():
+    filename = "warehouses/warehouse_01.txt"
+    path = solveSokoban_elementary(filename,0.0005)
+    print path
 if __name__ == "__main__":
-    runSolver()
+    #runSolver()
+    test_elementary()
