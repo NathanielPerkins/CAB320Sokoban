@@ -2,7 +2,7 @@ import cab320_search
 
 import cab320_sokoban
 
-import time, math
+import time, os
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class SokobanPuzzle(cab320_search.Problem):
@@ -69,10 +69,10 @@ class SokobanPuzzle(cab320_search.Problem):
         # print "In Result"
         for box in boxes:
             tempBox = box
-            print worker,box
+            # print worker,box
             if worker == box:
-                print "Do I ever reach here"
-                print box,action
+                # print "Do I ever reach here"
+                # print box,action
                 tempBox = addCoords(box,possibleMoves[action])
             newBoxes.append(tempBox)
 
@@ -288,18 +288,15 @@ def static_taboo_line(taboo,walls):
 def checkFreedom(pos1,pos2,direction):
     side1 = 0
     side2 = 0
-    if direction is 'y':
-        if pos1[0] > pos2[0]:
-            pos1,pos2 = pos2,pos1
-        for i in range(pos1[0]+1, pos2[0]):
-            return 'none'
-
+    taboo = []
+    while pos1 is not pos2:
+        continue
 def isInLine(pos1,pos2):
     if pos1[0] is pos2[0]:
         return 'x'
     elif pos1[1] is pos2[1]:
         return 'y'
-    return ''
+    return None
 
 def solveSokoban_elementary(puzzleFileName, timeLimit = None):
     '''
@@ -357,36 +354,20 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def runSolver():
-    puzzle = SokobanPuzzle('warehouses/warehouse_01.txt')
-    # print puzzle.warehouse.visualize()
-    # print "Initial State:"
-    # print puzzle.initial
-    # print "Legal Actions:"
-    # print puzzle.actions(puzzle.initial)
-    # print "Results: "
-    # step1 = puzzle.result(puzzle.initial,"Right")
-    # print step1
-    # print "Step 1 action:"
-    # step2 = puzzle.actions(step1)
-    # print step2
-    # print "Custom State"
-    # state = ((8,3),((7,3),(7,4)))
-    # print puzzle.actions(state)
-    # print "Custom State Left Result"
-    # print puzzle.result(state,"Left")
-    t0 = time.time()
-    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
-    t_final = time.time() - t0
+    skip = ["warehouse_141.txt",'warehouse_177.txt','warehouse_137.txt','warehouse_127.txt']
+    for filename in os.listdir("/home/nathanjp/git/CAB320Sokoban/2016_sokoban_BB/warehouses"):
+        if filename in skip:
+            continue
+        print "Working on",filename
+        print "-----------------------------------------------------------------"
+        puzzle = SokobanPuzzle("warehouses/"+filename)
+        t0 = time.time()
+        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        t_final = time.time() - t0
+        print "Solver took ",t_final, ' seconds'
+        puzzle.print_solution(sol)
 
-    puzzle.print_solution(sol)
-    print "Solution:"
-    print puzzle.warehouse.boxes
-    print puzzle.warehouse.targets
-    print "Solver took ",t_final, ' seconds'
 
 
 if __name__ == "__main__":
     runSolver()
-    # testTup1 = (1,1)
-    # testTup2 = (5,4)
-    # print addCoords(testTup1,testTup2)

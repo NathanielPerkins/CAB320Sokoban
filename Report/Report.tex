@@ -1,0 +1,57 @@
+\documentclass[]{article}
+\usepackage{geometry}
+\geometry{
+	a4paper,
+	total={170mm,257mm},
+	left=20mm,
+	top=20mm,
+}
+%opening
+\title{CAB320 - Artificial Intelligence\\
+	Sokoban Solver}
+\author{Nathan Perkins}
+
+\begin{document}
+
+\maketitle
+\newpage
+\section{Computational Environment}
+\begin{enumerate}
+	\item Operating System: Ubuntu Linux 15.10 was used in the creation of the Sokoban solver and all testing was undertaken in that environment
+	\item Python: Python 2.7.10 was used as the basis of the solution to maintain compatibility with the search algorithms already implemented.
+	\item Python Dependencies: 
+	\begin{enumerate}
+		\item Cab320\_search.py: Search algorithm library implemented by Frederic Maire
+		\item Cab320\_sokoban.py: Sokoban helper class library implemented by Frederic Maire
+		\item Time: Core python library, used to time function calls. No operating system platform dependency.
+		\item os: Core python library, used to iterate over files in folders. No operating system platform dependency.
+	\end{enumerate}
+\end{enumerate}
+\section{Elementary Solver}
+\subsection{Structure}
+The utilised search algorithms in cab320\_search.py required a state variable be implemented. To keep memory and therefore time to a minimum in searching for the solution space, only the dynamic elements of the puzzle were stored, including the worker and box elements. Static elements, such as the walls, taboo cells and targets were simply stored locally in the SokobanPuzzle class.\\
+The state takes the following form\\
+\\state[0] = worker : where worker is of the form (x,y). x and y are index co-ordinates
+\\state[1] = boxes : where boxes is a tuple of tuples, taking the form (($x_1,y_1$),($x_2,y_2$)...($x_n,y_n$))
+ 
+\subsection{Updating State}
+In the elementary solver, an action takes the form of possible worker movement. The Cardinal directions dictate the possible actions, however not all directions in a given state are legal. Actions are checked at each state, removing any that would constitute an illegal move. Illegal actions include all of the following and are implemented in the member class function actions(state).
+\begin{itemize}
+	\item Space occupied by wall.
+	\item Space occupied by box if that box can't be pushed in that direction.
+	\item Boxes can't be pushed in a direction if there exists no unoccupied space in that direction.
+\end{itemize}
+If a given action has been deemed legal and selected for the next state, the class member function results(\textit{state,action}) returns the result of that \textit{action}. The worker location stored in \textit{state[0]} is updated with the new location based on current location and \textit{action}. If the new worker position shares a location with a current box position taken from \textit{state[1]} then that box is also updated with a move in the direction of \textit{action}.
+\subsection{Heuristics}
+The heuristics function, denoted \textit{h(node)} takes a potential \textit{nodes state} variable, then takes the manhattan distance of all boxes to the closest goal state. It then adds the manhattan distance of the worker to the closest box before returning total cost. Due to the nature of the sokoban puzzle, a solution will almost never take the form of simply moving the nearest box to the nearest goal position. In all cases it is at most equal to the actual cost of solution. Therefore, the manhattan distance heuristic is an admissible heuristic and suitable to find the lowest cost solution to the puzzle. 
+\subsection{Taboo Cells}
+\section{Macro Solver}
+\subsection{Actions}
+\subsection{Heuristics}
+\subsection{Taboo Cells}
+\section{Performance}
+\section{Limitations}
+
+
+
+\end{document}
