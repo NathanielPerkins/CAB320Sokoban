@@ -2,6 +2,40 @@
 \usepackage{geometry}
 \usepackage{float}
 \usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{9} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{9}  % for normal
+% Defining colors
+\usepackage{color}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+
+\usepackage{listings}
+
+% Python style for highlighting
+\newcommand\pythonstyle{\lstset{
+		language=Python,
+		backgroundcolor=\color{white}, %%%%%%%
+		basicstyle=\ttm,
+		otherkeywords={self},            
+		keywordstyle=\ttb\color{deepblue},
+		emph={MyClass,__init__},          
+		emphstyle=\ttb\color{deepred},    
+		stringstyle=\color{deepgreen},
+		commentstyle=\color{red},  %%%%%%%%
+		frame=tb,                         
+		showstringspaces=false            
+	}}
+	
+	% Python environment
+	\lstnewenvironment{python}[1][]
+	{
+		\pythonstyle
+		\lstset{#1}
+	}
+	{}
 \geometry{
 	a4paper,
 	total={170mm,257mm},
@@ -38,7 +72,7 @@ The state takes the following form\\
 \\state[1] = boxes : where boxes is a tuple of tuples, taking the form (($x_1,y_1$),($x_2,y_2$)...($x_n,y_n$))
  
 \subsubsection{Updating State}
-In the elementary solver, an action takes the form of possible worker movement. The Cardinal directions dictate the possible actions, however not all directions in a given state are legal. Actions are checked at each state, removing any that would constitute an illegal move. Illegal actions include all of the following and are implemented in the member class function actions(state).
+In the elementary solver, an action takes the form of possible worker movement. The Cardinal directions dictate the possible actions, however not all directions in a given state are legal. Actions are checked at each state, removing any that would constitute an illegal move. Illegal actions include all of the following and are implemented in the member class function \textit{actions(state)}.
 \begin{itemize}
 	\item Space occupied by wall.
 	\item Space occupied by box if that box can't be pushed in that direction.
@@ -46,13 +80,13 @@ In the elementary solver, an action takes the form of possible worker movement. 
 \end{itemize}
 If a given action has been deemed legal and selected for the next state, the class member function results(\textit{state,action}) returns the result of that \textit{action}. The worker location stored in \textit{state[0]} is updated with the new location based on current location and \textit{action}. If the new worker position shares a location with a current box position taken from \textit{state[1]} then that box is also updated with a move in the direction of \textit{action}.
 \subsection{Heuristics}
-The heuristics function, denoted \textit{h(node)} takes a potential \textit{nodes state} variable, then takes the manhattan distance of all boxes to the closest goal state. It then adds the manhattan distance of the worker to the closest box before returning total cost. Due to the nature of the sokoban puzzle, a solution will almost never take the form of simply moving the nearest box to the nearest goal position. In all cases it is at most equal to the actual cost of solution. Therefore, the manhattan distance heuristic is an admissible heuristic and suitable to find the lowest cost solution to the puzzle. 
+The heuristics function, denoted \textit{h(node)} takes a potential \textit{nodes state} variable, then takes the manhattan distance of all boxes to the closest goal state. It then adds the manhattan distance of the worker to the closest box before returning total cost, which is the addition of all mentioned costs. Due to the nature of the sokoban puzzle, a solution will almost never take the form of simply moving the nearest box to the nearest goal position. In all cases it is at most equal to the actual cost of solution. Therefore, the manhattan distance heuristic is an admissible heuristic and suitable to find the lowest cost solution to the puzzle. 
 \subsection{Taboo Cells}
 There was 2 types of cells identified that were taboo for static taboo cells. Static taboo cells occur due to the walls and other unchanging parts of a puzzle.
 \subsubsection{Corner Cells}
  The first type of taboo cell occurs when a corner is encountered on the walls. A worker needs to be on the other side of a box to move it in the chosen direction, therefore once a box moves onto a corner it can't leave. An example of corner cells can be seen in figure \ref{TabooCells}. To compute the taboo cells, each wall location was checked against the remainder of the walls. If the current wall contains any neighbouring wall in a diagonal location, then the two adjacent cells that share both diagonal walls are marked as taboo. After each wall is checked, the list of corner cells is checked to make sure no wall cells or target cells were marker as taboo. 
 \subsubsection{Wall Adjacent Cells}
-Wall adjacent cells is another type of taboo cell, however this is harder to find. If a box moves adjacent to a wall, where there exists no openings for the worker to get behind the box, it is also a taboo cell. An example of this can be seen in figure \ref{TabooCells}. After checking for taboo corner cells, any cells between two already marked taboo corners is marked taboo if there exists no gap in the wall it borders.
+Wall adjacent cells is another type of taboo cell, however this is harder to find. If a box moves adjacent to a wall, where there exists no openings for the worker to get behind the box, it is also a taboo cell. An example of this can be seen in figure \ref{TabooCells}. After checking for taboo corner cells, any cells between two already marked taboo corners is marked taboo if there exists no gap in the wall it borders. The function \textit{static\_taboo\_line(taboo,walls,targets)} computes this. An exception is made if any of the cells in the original line are target states, and taboo cells aren't added in that case. 
 \begin{figure}[H]
 	\centering
 	\caption{Taboo Cells}
@@ -88,5 +122,6 @@ The macro solution currently isn't fully implemented, returning an incorrect lis
 Taboo cells only computes the corner cells. An error exists in calculating the adjacency taboo cells. For better functionality, adding in these cells will increase speed and reduce node calculation.
 \subsection{Macro}
 Macro solutions currently does not correctly evaluate the resultant macro action, it can't therefore solve a problem correctly. The function 
+
 
 \end{document}

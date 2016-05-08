@@ -315,7 +315,9 @@ def tabooTuple(walls,targets):
     returns: list of tuples deemed as taboo of the form
     ((x1,y1),(x2,y2),..(xn,yn))
     '''
-    taboo = static_taboo_corners(walls,targets)
+    tabooC = static_taboo_corners(walls,targets)
+    tabooL = static_taboo_line(tabooC,walls,targets)
+    taboo = cleanTaboo(tabooC+tabooL,targets,walls)
     #implement taboo line function and append that to taboo
     return taboo
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -372,51 +374,78 @@ def static_taboo_corners(walls,targets):
         taboo.remove(tuple((x,y)))
     return taboo
 
-def static_taboo_line(taboo,walls):
+def static_taboo_line(taboo,walls,targets):
+    '''
+    Computes all the adjacent to wall taboo cells. Works by checking already
+    existing taboo corner cells for any that are in line. Then checks the line
+    of cells between those two. If at least one side of the checked line
+    contains nothing but wall, those cells are marked as taboo.
+    taboo: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    walls: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    returns: tuple list of form ((x1,y1),(x2,y2)...(xn,yn)) cells marked as
+    taboo
+    '''
     newTaboo = []
     for tab1 in taboo:
-        print tab1
         for tab2 in taboo:
-            print tab2
             if tab1 != tab2:
-                print "tab1,tab2 = ", tab1,tab2
-                line = isInLine(tab1,tab2)
-                if line is 'y':
-                    print "in Y"
+                #calculate for every pair of taboo cells
+                line = isInLine(tab1,tab2) # check if they're in line
+                if line is 'y': #if they share the y direction
                     distance = abs(tab1[1]-tab2[1])
                     y1,y2 = tab1[1],tab2[1]
-                    if y1>y2:
+                    if y1>y2: #swap values to make calculation easier
                         y1,y2 = y2,y1
 
                     xl = [tab1[0]-1 for a in range(distance)]
                     y = [b for b in range(y1,y2)]
                     xr = [tab1[0]+1 for a in range(distance)]
 
-                    checkLeft = zip(xl,y)
-                    checkRight = zip(xr,y)
-                    if checkAllIn(walls,checkLeft) or checkAllIn(walls,checkRight):
+                    left = zip(xl,y)
+                    right = zip(xr,y)
+                    #check if either of the adjacent lines is pure wall
+                    if checkAllIn(walls,left) or checkAllIn(walls,right):
                         x = [tab1[0] for a in range(distance)]
-                        newTaboo += zip(x,y)
+                        line = zip(x,y)
+                        if checkTargetsInLine(targets,line):
+                            newTaboo += zip(x,y)
 
-
-                if line is 'x':
-                    print "in X"
+                if line is 'x': #if they share the x direction
                     distance = abs(tab1[0]-tab2[0])
                     y1,y2 = tab1[0],tab2[0]
-                    if y1>y2:
+                    if y1>y2: #swap values to make calculation easier
                         y1,y2 = y2,y1
 
                     yu = [tab1[1]-1 for a in range(distance)]
                     x = [b for b in range(y1,y2)]
                     yd = [tab1[1]+1 for a in range(distance)]
 
-                    checkUp = zip(x,yu)
-                    checkDown = zip(x,yd)
-                    if checkAllIn(walls,checkUp) or checkAllIn(walls,checkDown):
+                    up = zip(x,yu)
+                    down = zip(x,yd)
+                    #check if either of the adjacent lines is pure wall
+                    if checkAllIn(walls,up) or checkAllIn(walls,down):
                         y = [tab1[1] for a in range(distance)]
-                        newTaboo += zip(x,y)
+                        line = zip(x,y)
+                        if checkTargetsInLine(targets,line):
+                            newTaboo += zip(x,y)
+
+
     return newTaboo
 
+def cleanTaboo(taboo,targets,walls):
+    clean = []
+    newTaboo = list(set(taboo)) #removes multiples
+    for pos in newTaboo:
+        if pos in targets or pos in walls:
+            clean.append(pos)
+    for pos in clean:
+        newTaboo.remove(pos)
+    return newTaboo
+def checkTargetsInLine(targets,line):
+    for pos in line:
+        if pos in targets:
+            return False
+    return True
 
 def checkAllIn(walls,check):
     '''
@@ -535,7 +564,15 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
     return puzzle.return_path(sol.path())
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def testPuzzle(filename):
+    print "Working on",filename
+    print "-----------------------------------------------------------------"
+    puzzle = SokobanPuzzle(filename)
+    t0 = time.time()
+    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    t_final = time.time() - t0
+    print "Solver took ",t_final, ' seconds'
+    puzzle.print_solution(sol)
 def runSolver():
     skip = ["warehouse_141.txt",'warehouse_177.txt','warehouse_137.txt','warehouse_127.txt']
     for filename in os.listdir("/home/nathanjp/git/CAB320Sokoban/2016_sokoban_BB/warehouses"):
@@ -543,32 +580,49 @@ def runSolver():
             continue
         print "Working on",filename
         print "-----------------------------------------------------------------"
-        puzzle = SokobanPuzzle("warehouses/"+filename)
-        t0 = time.time()
-        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
-        t_final = time.time() - t0
-        print "Solver took ",t_final, ' seconds'
-        puzzle.print_solution(sol)
+        fullFilename = "warehouses/"+filename
+        testPuzzle(fullFilename)
+def visualize(worker,walls,targets,taboo,boxes):
+    '''
+    Return a string representation of the warehouse
+    '''
+    ##        x_size = 1+max(x for x,y in self.walls)
+    ##        y_size = 1+max(y for x,y in self.walls)
+    X,Y = zip(*walls) # pythonic version of the above
+    x_size, y_size = 1+max(X), 1+max(Y)
 
+    vis = [[" "] * x_size for y in range(y_size)]
+    for (x,y) in walls:
+        vis[y][x] = "#"
+    for (x,y) in targets:
+        vis[y][x] = "."
+    for (x,y) in taboo:
+        vis[y][x] = "X"
+    # if worker is on a target display a "!", otherwise a "@"
+    # exploit the fact that Targets has been already processed
+    if vis[worker[1]][worker[0]] == ".": # Note y is worker[1], x is worker[0]
+        vis[worker[1]][worker[0]] = "!"
+    else:
+        vis[worker[1]][worker[0]] = "@"
+    # if a box is on a target display a "*"
+    # exploit the fact that Targets has been already processed
+    for (x,y) in boxes:
+        if vis[y][x] == ".": # if on target
+            vis[y][x] = "*"
+        else:
+            vis[y][x] = "$"
+    return "\n".join(["".join(line) for line in vis])
 def test_taboo():
     filename = "warehouses/warehouse_03.txt"
     puzzle = SokobanPuzzle(filename)
+    walls = puzzle.warehouse.walls
+    targets = puzzle.warehouse.targets
+    worker = puzzle.warehouse.worker
+    boxes = puzzle.warehouse.boxes
 
-    staticLine = static_taboo_line(puzzle.taboo,puzzle.warehouse.walls)
-    fullTab = list(set(staticLine + puzzle.taboo))
-    temp = []
-    for tab in fullTab:
-        if tab in puzzle.warehouse.walls:
-            temp.append(tab)
-        if tab in puzzle.warehouse.targets:
-            temp.append(tab)
-    for tab in temp:
-        fullTab.remove(tab)
-    print puzzle.warehouse.visualize()
-    print puzzle.taboo
-    for tab in fullTab:
-        if tab not in puzzle.taboo:
-            print tab
+    fullTab = tabooTuple(puzzle.warehouse.walls,puzzle.warehouse.targets)
+
+    print visualize(worker,walls,targets,fullTab,boxes)
 def test_elementary():
     filename = "warehouses/warehouse_01.txt"
     path = solveSokoban_elementary(filename)
@@ -580,7 +634,8 @@ def test_macro():
     print puzzle.warehouse.visualize()
     puzzle.print_solution(sol)
 if __name__ == "__main__":
-    #runSolver()
-    test_elementary()
+    # runSolver()
+    #test_elementary()
     #test_macro()
     #test_taboo()
+    testPuzzle("warehouses/warehouse_43.txt")
