@@ -169,7 +169,6 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         action in the given state. The action must be one of
         self.actions(state).
         """
-        print "actions = ",action
         assert action in self.actions(state)
         worker = state[0]
         boxes = state[1]
@@ -184,10 +183,12 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         newBoxes = []
         for box in boxes:
             temp = box
-            if isInLine(box,worker) is not None and isInLine(box,newWorker) is not None:
+            if inMovement(box,worker,possibleMoves[action[0]],count):
                 temp = addCoords(newWorker,possibleMoves[action[0]])
             newBoxes.append(temp)
-        return (worker,tuple(newBoxes))
+
+        print tuple(newBoxes)
+        return (newWorker,tuple(newBoxes))
 
     def h(self,node):
         h = 0
@@ -208,6 +209,12 @@ class SokobanPuzzleMacro(SokobanPuzzle):
             h = h + 2
         return h
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def inMovement(pos1,pos2,movement,steps):
+    for i in range(steps):
+        pos1 = addCoords(pos1,movement)
+        if pos1 == pos2:
+            return True
+    return False
 def closestPosition(pos1,targets):
     '''
     Finds the closest position amongst a list of possible targets and a given
@@ -255,13 +262,11 @@ def checkActions(puzzleFileName, actionSequence):
                string returned by the method  WarehouseHowever.visualize()
     '''
     puzzle = SokobanPuzzle(puzzleFileName)
-
     for action in actionSequence:
-            new_action = action[0]
-            if new_action not in puzzle.actions(puzzle.warehouse):
-                    return 'Failure'
-            puzzle.warehouse = puzzle.result(puzzle.warehouse,new_action)
-
+        newAction = action[0]
+        if newAction not in puzzle.actions(puzzle.warehouse):
+            return 'Failure'
+        puzzle.warehouse = puzzle.result(puzzle.warehouse,newAction)
     return puzzle.warehouse.visualize()
 
 
@@ -332,6 +337,7 @@ def static_taboo_corners(walls,targets):
     returns:
     taboo: tuple list of (x,y) coordinates
     '''
+    #analyze each cell and check diagonal cells
     taboo = []
     for (x,y) in walls:
         if (x+1,y+1) in walls:
@@ -354,6 +360,8 @@ def static_taboo_corners(walls,targets):
                 taboo.append(tuple((x-1,y)))
             if(x,y-1) not in taboo:
                 taboo.append(tuple((x,y-1)))
+
+    #remove any taboo cells that are also a wall
     removeTab = []
     for (x,y) in taboo:
         if (x,y) in walls:
@@ -365,26 +373,75 @@ def static_taboo_corners(walls,targets):
     return taboo
 
 def static_taboo_line(taboo,walls):
-    taboo = []
+    newTaboo = []
     for tab1 in taboo:
+        print tab1
         for tab2 in taboo:
-            if tab1 is not tab2:
-                line = isInLine()
+            print tab2
+            if tab1 != tab2:
+                print "tab1,tab2 = ", tab1,tab2
+                line = isInLine(tab1,tab2)
                 if line is 'y':
-                    if checkFreedom(tab1,tab2):
-                        return 'none'
+                    print "in Y"
+                    distance = abs(tab1[1]-tab2[1])
+                    y1,y2 = tab1[1],tab2[1]
+                    if y1>y2:
+                        y1,y2 = y2,y1
 
-def checkFreedom(pos1,pos2,direction):
-    side1 = 0
-    side2 = 0
-    taboo = []
-    while pos1 is not pos2:
-        continue
+                    xl = [tab1[0]-1 for a in range(distance)]
+                    y = [b for b in range(y1,y2)]
+                    xr = [tab1[0]+1 for a in range(distance)]
+
+                    checkLeft = zip(xl,y)
+                    checkRight = zip(xr,y)
+                    if checkAllIn(walls,checkLeft) or checkAllIn(walls,checkRight):
+                        x = [tab1[0] for a in range(distance)]
+                        newTaboo += zip(x,y)
+
+
+                if line is 'x':
+                    print "in X"
+                    distance = abs(tab1[0]-tab2[0])
+                    y1,y2 = tab1[0],tab2[0]
+                    if y1>y2:
+                        y1,y2 = y2,y1
+
+                    yu = [tab1[1]-1 for a in range(distance)]
+                    x = [b for b in range(y1,y2)]
+                    yd = [tab1[1]+1 for a in range(distance)]
+
+                    checkUp = zip(x,yu)
+                    checkDown = zip(x,yd)
+                    if checkAllIn(walls,checkUp) or checkAllIn(walls,checkDown):
+                        y = [tab1[1] for a in range(distance)]
+                        newTaboo += zip(x,y)
+    return newTaboo
+
+
+def checkAllIn(walls,check):
+    '''
+    Checks all cells in line are in another set
+    walls: list of tuples of form (x,y)
+    check: list of tuples of form (x,y)
+    return: False if all of check isn't in walls, True if it is
+    '''
+    for ch in check:
+        if ch not in walls:
+            return False
+    return True
+
 def isInLine(pos1,pos2):
+    '''
+    Checks 2 tuples and returns the grid direction they share
+    pos1: tuple of form (x,y)
+    pos2: tuple of form (x,y)
+    return: 'x' if they share the x values, 'y' if they share the y values
+    returns None if they share no values.
+    '''
     if pos1[0] is pos2[0]:
-        return 'x'
-    elif pos1[1] is pos2[1]:
         return 'y'
+    elif pos1[1] is pos2[1]:
+        return 'x'
     return None
 
 def solveSokoban_elementary(puzzleFileName, timeLimit = None):
@@ -448,10 +505,23 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
             For example, ['Left', 'Down', Down','Right', 'Up', 'Down']
             If the puzzle is already in a goal state, simply return []
     '''
+    Print "Warning: Macro solution does not currently arrive at the solution"
+    puzzle = SokobanPuzzleMacro(puzzleFileName)
+    if(puzzle.goal_test(puzzle.initial)):
+        return []
+    if timeLimit is None:
+        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
 
-##         "INSERT YOUR CODE HERE"
+    timer = threading.Timer(timeLimit,thread.interrupt_main)
+    try:
+        timer.start()
+        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    except:
+        timer.cancel()
+        return ['Timeout']
+    timer.cancel()
 
-    raise NotImplementedError()
+    return puzzle.return_path(sol.path())
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -469,6 +539,25 @@ def runSolver():
         print "Solver took ",t_final, ' seconds'
         puzzle.print_solution(sol)
 
+def test_taboo():
+    filename = "warehouses/warehouse_03.txt"
+    puzzle = SokobanPuzzle(filename)
+
+    staticLine = static_taboo_line(puzzle.taboo,puzzle.warehouse.walls)
+    fullTab = list(set(staticLine + puzzle.taboo))
+    temp = []
+    for tab in fullTab:
+        if tab in puzzle.warehouse.walls:
+            temp.append(tab)
+        if tab in puzzle.warehouse.targets:
+            temp.append(tab)
+    for tab in temp:
+        fullTab.remove(tab)
+    print puzzle.warehouse.visualize()
+    print puzzle.taboo
+    for tab in fullTab:
+        if tab not in puzzle.taboo:
+            print tab
 def test_elementary():
     filename = "warehouses/warehouse_01.txt"
     path = solveSokoban_elementary(filename)
@@ -481,5 +570,6 @@ def test_macro():
     puzzle.print_solution(sol)
 if __name__ == "__main__":
     #runSolver()
-    test_elementary()
-    test_macro()
+    #test_elementary()
+    #test_macro()
+    test_taboo()

@@ -25,6 +25,7 @@
 		\item Cab320\_sokoban.py: Sokoban helper class library implemented by Frederic Maire
 		\item Time: Core python library, used to time function calls. No operating system platform dependency.
 		\item os: Core python library, used to iterate over files in folders. No operating system platform dependency.
+		\item thread + threading: Core python library, used to ensure function calls don't go over cut-off time. No operating system platform dependency.
 	\end{enumerate}
 \end{enumerate}
 \section{Elementary Solver}
@@ -47,6 +48,7 @@ The heuristics function, denoted \textit{h(node)} takes a potential \textit{node
 \subsection{Taboo Cells}
 \section{Macro Solver}
 \subsection{Actions}
+Actions were redefined for the macro actions. Rather than, as in elementary, just moving the worker a single space, all possible spaces in a line are considered. If the worker has an unimpeded "line of sight" to a grid space in one of the cardinal directions it is considered an available action. Furthermore, if "line of sight" is blocked by only 1 box, it can push that box until it contacts the wall, a taboo cell, or another box. 
 \subsection{Heuristics}
 \subsection{Taboo Cells}
 \section{Performance}
