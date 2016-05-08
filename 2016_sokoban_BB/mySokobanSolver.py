@@ -18,13 +18,6 @@ class SokobanPuzzle(cab320_search.Problem):
         self.warehouse.read_warehouse_file(puzzleFileName)
         self.taboo = tabooTuple(self.warehouse.walls,self.warehouse.targets)
         self.initial = (self.warehouse.worker,tuple(self.warehouse.boxes))
-
-    def goal_test(self,state):
-        """Return True if the state is a goal. The default method compares the
-        state to self.goal, as specified in the constructor. Override this
-        method if checking against a single self.goal is not enough."""
-        return set(self.warehouse.targets)==set(state[1])
-
     def actions(self, state):
         """
         Builds a list of actions that can be taken from a given state. Actions
@@ -52,6 +45,13 @@ class SokobanPuzzle(cab320_search.Problem):
                 if checkPos not in list(boxes)+taboo+walls:
                     legalMoves.append(possibleMoves[direction])
         return legalMoves
+    def goal_test(self,state):
+        """Return True if the state is a goal. The default method compares the
+        state to self.goal, as specified in the constructor. Override this
+        method if checking against a single self.goal is not enough."""
+        return set(self.warehouse.targets)==set(state[1])
+
+
 
     def result(self, state, action):
         """
@@ -122,6 +122,91 @@ class SokobanPuzzle(cab320_search.Problem):
         return h + manhattanDistance(closestBox,worker)
 
 
+class SokobanPuzzleMacro(SokobanPuzzle):
+    name = 'Macro Solver'
+    def actions(self, state):
+        """
+        Builds a list of actions that can be taken from a given state. Actions
+        are string variables that correspond to cardinal directions possible
+        for the worker to move.
+        state: tuple list of form ((x_w,y_w),((x1,y1),(x2,y2)...(xn,yn)))
+        state[0] corresponds to the worker location
+        state[1] corresponds to a list of box locations
+        returns: string list of possible directions to move the worker
+        ['Left','Right','Up','Down']
+        """
+        worker = state[0]
+        boxes = state[1]
+        walls = self.warehouse.walls
+        taboo = self.taboo
+        legalMoves = []
+        count = 0
+        boxMove = 0
+        elementaryMoves = {(0, -1):'U',(0, 1):'D',(-1, 0):'L',(1, 0):'R'}
+        for move in elementaryMoves:
+            extendWorker = addCoords(move,worker)
+            while extendWorker not in walls and boxMove is not 2:
+                if extendWorker in boxes:
+                    boxMove = boxMove + 1
+                count = count + 1
+                extendWorker = addCoords(move,extendWorker)
+            count = count - boxMove
+            for i in range(count):
+                tempString = ''
+                for j in range(i+1):
+                    tempString = tempString + elementaryMoves[move]
+                if tempString is not '':
+                    legalMoves.append(tempString)
+            count = 0
+            secondBox = False
+            boxMove = 0
+        return legalMoves
+
+
+    def result(self, state, action):
+        """
+        Return the state that results from executing the given
+        action in the given state. The action must be one of
+        self.actions(state).
+        """
+        print "actions = ",action
+        assert action in self.actions(state)
+        worker = state[0]
+        boxes = state[1]
+        newState = []
+        possibleMoves = {'U':(0, -1),'D':(0, 1),'L':(-1, 0),'R':(1, 0)}
+        newBoxes = list(boxes)
+        count = 0
+        for move in action:
+            count += 1
+        totalMove = tuple([x*count for x in possibleMoves[action[0]]])
+        newWorker = addCoords(worker,totalMove)
+        newBoxes = []
+        for box in boxes:
+            temp = box
+            if isInLine(box,worker) is not None and isInLine(box,newWorker) is not None:
+                temp = addCoords(newWorker,possibleMoves[action[0]])
+            newBoxes.append(temp)
+        return (worker,tuple(newBoxes))
+
+    def h(self,node):
+        h = 0
+        worker = node.state[0]
+        boxes = node.state[1]
+        targets = self.warehouse.targets
+        for box in boxes:
+            h = h + 2 #assume it will take 2 macro moves to move box to target
+            for target in targets:
+                if isInLine(box,target) is not None:
+                    #assumption is wrong and therefore only needs 1 move to get
+                    #box to target
+                    h = h - 1
+        closestBox = closestPosition(worker,boxes)
+        if isInLine(worker,closestBox) is not None:
+            h = h + 1 #worker only 1 away from box, add 1
+        else:
+            h = h + 2
+        return h
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def closestPosition(pos1,targets):
     '''
@@ -386,8 +471,15 @@ def runSolver():
 
 def test_elementary():
     filename = "warehouses/warehouse_01.txt"
-    path = solveSokoban_elementary(filename,0.0005)
+    path = solveSokoban_elementary(filename)
     print path
+def test_macro():
+    filename = "warehouses/warehouse_01.txt"
+    puzzle = SokobanPuzzleMacro(filename)
+    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    print puzzle.warehouse.visualize()
+    puzzle.print_solution(sol)
 if __name__ == "__main__":
     #runSolver()
     test_elementary()
+    test_macro()
