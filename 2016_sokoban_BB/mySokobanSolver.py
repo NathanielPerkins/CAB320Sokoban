@@ -158,11 +158,15 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         elementaryMoves = {(0, -1):'U',(0, 1):'D',(-1, 0):'L',(1, 0):'R'}
         #check every possible move
         for move in elementaryMoves:
+            tabooFlag = False
             extendWorker = addCoords(move,worker)
             #keep extending worker until wall or box is hit, if box is hit, push
             #box until it contacts the wall or another box
-            while extendWorker not in walls and boxMove is not 2:
+            while extendWorker not in walls and boxMove is not 2 and not tabooFlag:
                 if extendWorker in boxes:
+                    checkTab = addCoords(extendWorker,move)
+                    if checkTab in taboo:
+                        tabooFlag = True
                     boxMove = boxMove + 1
                 count = count + 1
                 extendWorker = addCoords(move,extendWorker)
@@ -388,8 +392,8 @@ def static_taboo_corners(walls,targets):
         if (x-1,y+1) in walls:
             if(x-1,y) not in taboo: #append shared grid square
                 taboo.append(tuple((x-1,y)))
+            if(x,y+1) not in taboo: #append shared grid square
                 taboo.append(tuple((x,y+1)))
-                if(x,y+1) not in taboo: #append shared grid square
         # check bottom right diagonal
         if (x-1,y-1) in walls:
             if(x-1,y) not in taboo: #append shared grid square
@@ -681,7 +685,7 @@ def test_taboo():
 
     fullTab = tabooTuple(puzzle.warehouse.walls,puzzle.warehouse.targets)
 def compare_solutions():
-    filename = "warehouses/warehouse_43.txt"
+    filename = "warehouses/warehouse_03.txt"
     testPuzzle(filename)
     testPuzzleMacro(filename)
 
@@ -694,9 +698,9 @@ def test_macro():
     path = solveSokoban_macro(filename)
     print path
 if __name__ == "__main__":
-    #compare_solutions()
+    compare_solutions()
     # runSolver()
     # test_elementary()
-    test_macro()
+    #test_macro()
     #test_taboo()
     # testPuzzle("warehouses/warehouse_43.txt")
