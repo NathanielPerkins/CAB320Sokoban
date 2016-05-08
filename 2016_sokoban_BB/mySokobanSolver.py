@@ -103,6 +103,10 @@ class SokobanPuzzle(cab320_search.Problem):
         print self.return_path(path)
 
     def return_path(self,path):
+        '''
+        Returns the path taken to get to the solution in the form of an
+        action sequence, which is a list of actions of the form self.action(state)
+        '''
         actionSequence = []
         for node in path:
             if node.action is not None:
@@ -110,6 +114,10 @@ class SokobanPuzzle(cab320_search.Problem):
         return actionSequence
 
     def h(self,node):
+        '''
+        Finds the manhattan distance of all boxes to closest goal states, as
+        well as the manhattan distance of worker to closest box
+        '''
         h = 0
         worker = node.state[0]
         boxes = node.state[1]
@@ -177,20 +185,34 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         newBoxes = list(boxes)
         count = 0
         for move in action:
-            count += 1
-        totalMove = tuple([x*count for x in possibleMoves[action[0]]])
-        newWorker = addCoords(worker,totalMove)
-        newBoxes = []
-        for box in boxes:
-            temp = box
-            if inMovement(box,worker,possibleMoves[action[0]],count):
-                temp = addCoords(newWorker,possibleMoves[action[0]])
-            newBoxes.append(temp)
+            worker = addCoords(worker,possibleMoves[move])
+            for box in newBoxes:
+                tempBox = box
+                if worker == box:
+                    tempBox = addCoords(box,possibleMoves[move])
+                    newBoxes.append(tempBox)
+                    newBoxes.remove(box)
+                    continue
+            # count += 1
 
-        print tuple(newBoxes)
-        return (newWorker,tuple(newBoxes))
+        # totalMove = tuple([x*count for x in possibleMoves[action[0]]])
+        # newWorker = addCoords(worker,totalMove)
+        # newBoxes = []
+        # for box in boxes:
+        #     temp = box
+        #     if inMovement(box,worker,possibleMoves[action[0]],count):
+        #         temp = addCoords(newWorker,possibleMoves[action[0]])
+        #     newBoxes.append(temp)
+
+        return (worker,tuple(newBoxes))
 
     def h(self,node):
+        '''
+        Returns the summation of macro moves required to reach goal state with
+        no constraints. For every box, if box is on target, add 0, if box is in
+        line with a target add 1, if box is not in line with any targets add 2.
+        Repeat for worker to closest box, return the summation result of all
+        '''
         h = 0
         worker = node.state[0]
         boxes = node.state[1]
@@ -210,6 +232,15 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         return h
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def inMovement(pos1,pos2,movement,steps):
+    '''
+    Given a direction of movement, position and steps taken, it computes if there
+    is another position inside this movement line.
+    pos1: tuple of form (x,y)
+    pos2: tuple of form (x,y)
+    movement: tuple of form (x,y)
+    steps: integer number
+    returns: True if the movement from pos1 includes pos2, False otherwise
+    '''
     for i in range(steps):
         pos1 = addCoords(pos1,movement)
         if pos1 == pos2:
@@ -318,7 +349,6 @@ def tabooTuple(walls,targets):
     tabooC = static_taboo_corners(walls,targets)
     tabooL = static_taboo_line(tabooC,walls,targets)
     taboo = cleanTaboo(tabooC+tabooL,targets,walls)
-    #implement taboo line function and append that to taboo
     return taboo
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -379,7 +409,8 @@ def static_taboo_line(taboo,walls,targets):
     Computes all the adjacent to wall taboo cells. Works by checking already
     existing taboo corner cells for any that are in line. Then checks the line
     of cells between those two. If at least one side of the checked line
-    contains nothing but wall, those cells are marked as taboo.
+    contains nothing but wall, those cells are marked as taboo. If the line
+    being checked contains a target state, it does not append those positions.
     taboo: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
     walls: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
     returns: tuple list of form ((x1,y1),(x2,y2)...(xn,yn)) cells marked as
@@ -433,6 +464,15 @@ def static_taboo_line(taboo,walls,targets):
     return newTaboo
 
 def cleanTaboo(taboo,targets,walls):
+    '''
+    Cleans taboo cells of all cells that are located in targets, walls, or
+    duplicates inside its own list. Finally, returning a cleaned up list of
+    taboo cells.
+    taboo: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    targets: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    walls: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    returns: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    '''
     clean = []
     newTaboo = list(set(taboo)) #removes multiples
     for pos in newTaboo:
@@ -441,7 +481,14 @@ def cleanTaboo(taboo,targets,walls):
     for pos in clean:
         newTaboo.remove(pos)
     return newTaboo
+
 def checkTargetsInLine(targets,line):
+    '''
+    Checks if a line of positions shares any points with a list of target states
+    targets: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    line: tuple list of form ((x1,y1),(x2,y2)...(xn,yn))
+    returns: True if line and targets share no values, False otherwise
+    '''
     for pos in line:
         if pos in targets:
             return False
@@ -565,9 +612,18 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def testPuzzle(filename):
-    print "Working on",filename
+    print "Elementary Working on",filename
     print "-----------------------------------------------------------------"
     puzzle = SokobanPuzzle(filename)
+    t0 = time.time()
+    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+    t_final = time.time() - t0
+    print "Solver took ",t_final, ' seconds'
+    puzzle.print_solution(sol)
+def testPuzzleMacro(filename):
+    print "Macro solver Working on",filename
+    print "-----------------------------------------------------------------"
+    puzzle = SokobanPuzzleMacro(filename)
     t0 = time.time()
     sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
     t_final = time.time() - t0
@@ -621,21 +677,25 @@ def test_taboo():
     boxes = puzzle.warehouse.boxes
 
     fullTab = tabooTuple(puzzle.warehouse.walls,puzzle.warehouse.targets)
+def compare_solutions():
+    filename = "warehouses/warehouse_43.txt"
+    testPuzzle(filename)
+    testPuzzleMacro(filename)
 
-    print visualize(worker,walls,targets,fullTab,boxes)
 def test_elementary():
-    filename = "warehouses/warehouse_01.txt"
+    filename = "warehouses/warehouse_03.txt"
     path = solveSokoban_elementary(filename)
     print path
 def test_macro():
-    filename = "warehouses/warehouse_01.txt"
+    filename = "warehouses/warehouse_03.txt"
     puzzle = SokobanPuzzleMacro(filename)
     sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
     print puzzle.warehouse.visualize()
     puzzle.print_solution(sol)
 if __name__ == "__main__":
+    compare_solutions()
     # runSolver()
-    #test_elementary()
-    #test_macro()
+    # test_elementary()
+    # test_macro()
     #test_taboo()
-    testPuzzle("warehouses/warehouse_43.txt")
+    # testPuzzle("warehouses/warehouse_43.txt")

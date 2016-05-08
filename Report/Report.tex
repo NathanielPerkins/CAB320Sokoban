@@ -82,7 +82,7 @@ If a given action has been deemed legal and selected for the next state, the cla
 \subsection{Heuristics}
 The heuristics function, denoted \textit{h(node)} takes a potential \textit{nodes state} variable, then takes the manhattan distance of all boxes to the closest goal state. It then adds the manhattan distance of the worker to the closest box before returning total cost, which is the addition of all mentioned costs. Due to the nature of the sokoban puzzle, a solution will almost never take the form of simply moving the nearest box to the nearest goal position. In all cases it is at most equal to the actual cost of solution. Therefore, the manhattan distance heuristic is an admissible heuristic and suitable to find the lowest cost solution to the puzzle. 
 \subsection{Taboo Cells}
-There was 2 types of cells identified that were taboo for static taboo cells. Static taboo cells occur due to the walls and other unchanging parts of a puzzle.
+There were 2 types of cells identified that were taboo for static taboo cells. Static taboo cells occur due to the walls and other unchanging parts of a puzzle.
 \subsubsection{Corner Cells}
  The first type of taboo cell occurs when a corner is encountered on the walls. A worker needs to be on the other side of a box to move it in the chosen direction, therefore once a box moves onto a corner it can't leave. An example of corner cells can be seen in figure \ref{TabooCells}. To compute the taboo cells, each wall location was checked against the remainder of the walls. If the current wall contains any neighbouring wall in a diagonal location, then the two adjacent cells that share both diagonal walls are marked as taboo. After each wall is checked, the list of corner cells is checked to make sure no wall cells or target cells were marker as taboo. 
 \subsubsection{Wall Adjacent Cells}
@@ -113,15 +113,17 @@ Due to the creation of macro actions, the old heuristics become inadmissible and
 \end{enumerate}
 The heuristic adds all these values, then adds a further value for the worker using the same criteria as above, except between worker and box.
 \section{Performance}
+Both elementary and macro solver only utilise the A* search algorithm instead of the Iterative Deepening A*. Performance was therefore much slower than could be achieved. IDA* would greatly improve performance of both solutions. 
 \subsection{Elementary}
 The elementary actions solution is implemented, and can solve given puzzles. Puzzles with simple solutions can be computed quickly, however puzzles with larger complexity take much longer to solve. These harder puzzles can take minutes to fully solve. Testing was performed on a range of the warehouses sequentially, using the os library to iterate and complete each puzzle. 
 \subsection{Macro}
-The macro solution currently isn't fully implemented, returning an incorrect list of actions due to an error in the\textit{ results(state,action)} function. 
+\label{Macro}
+The macro solution performs slower than the elementary counterpart. The solutions found between elementary and macro don't differ when the macro actions are expanded, suggesting that both have admissible heuristics. The performance loss could be due to a number of issues. Elementary action heuristics offer a greater range of possible values, with greater variance each states cost, thus directing the A* search algorithm to perform better than the macro actions heuristic.  
 \section{Limitations}
 \subsection{Elementary}
-Taboo cells only computes the corner cells. An error exists in calculating the adjacency taboo cells. For better functionality, adding in these cells will increase speed and reduce node calculation.
+For the current implementation, taboo cells only calculates between the current box and it's closest target goal. If the target state is occupied however, this will produce redundancy in checked nodes for the solution. Performance could be increased by implementing a box-goal pairing algorithm and computing the heuristic based on that pairing instead of closest to goal as it's currently implemented.
 \subsection{Macro}
-Macro solutions currently does not correctly evaluate the resultant macro action, it can't therefore solve a problem correctly. The function 
+Macro solution currently takes much longer than elementary to solve, as explained in section \ref{Macro}. Instead of increased one direction movement, as currently implemented, the algorithm could be expanded to tunnel the worker to particular points, and taking elementary actions when moving boxes. This method would preserve the manhattan distance heuristic for boxes to goals, but would allow the worker to skip to new locations. 
 
 
 \end{document}
