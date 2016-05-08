@@ -466,17 +466,22 @@ def solveSokoban_elementary(puzzleFileName, timeLimit = None):
     if(puzzle.goal_test(puzzle.initial)):
         return []
     if timeLimit is None:
-        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
-
+        try:
+            sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        except AssertionError:
+            return ['Impossible']
     timer = threading.Timer(timeLimit,thread.interrupt_main)
     try:
         timer.start()
-        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        try:
+            sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        except AssertionError:
+            time.cancel()
+            return ['Impossible']
+        timer.cancel()
     except:
         timer.cancel()
         return ['Timeout']
-    timer.cancel()
-
     return puzzle.return_path(sol.path())
 
 
@@ -505,17 +510,23 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
             For example, ['Left', 'Down', Down','Right', 'Up', 'Down']
             If the puzzle is already in a goal state, simply return []
     '''
-    Print "Warning: Macro solution does not currently arrive at the solution"
+    print "Warning: Macro solution does not currently arrive at the solution"
     puzzle = SokobanPuzzleMacro(puzzleFileName)
     if(puzzle.goal_test(puzzle.initial)):
         return []
     if timeLimit is None:
-        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
-
+        try:
+            sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        except AssertionError:
+            return ['Impossible']
     timer = threading.Timer(timeLimit,thread.interrupt_main)
     try:
         timer.start()
-        sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        try:
+            sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
+        except AssertionError:
+            time.cancel()
+            return ['Impossible']
     except:
         timer.cancel()
         return ['Timeout']
@@ -570,6 +581,6 @@ def test_macro():
     puzzle.print_solution(sol)
 if __name__ == "__main__":
     #runSolver()
-    #test_elementary()
+    test_elementary()
     #test_macro()
-    test_taboo()
+    #test_taboo()
