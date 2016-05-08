@@ -36,11 +36,13 @@ class SokobanPuzzle(cab320_search.Problem):
 
         possibleMoves = {(0, -1):'Up',(0, 1):'Down',(-1, 0):'Left',(1, 0):'Right'}
         legalMoves = []
+        #for every possible move, check if it's a legal action by comparing
+        #walls and boxes if that box can't be pushed
         for direction in possibleMoves.keys():
             checkPos = addCoords(direction,worker)
-            if checkPos not in walls and checkPos not in boxes:
+            if checkPos not in walls and checkPos not in boxes: #no conflicts
                 legalMoves.append(possibleMoves[direction])
-            if checkPos in boxes:
+            if checkPos in boxes: #if conflict is a box, check if can push box
                 checkPos = addCoords(direction,checkPos)
                 if checkPos not in list(boxes)+taboo+walls:
                     legalMoves.append(possibleMoves[direction])
@@ -64,12 +66,14 @@ class SokobanPuzzle(cab320_search.Problem):
         boxes = state[1]
         newState = []
         possibleMoves = {'Up':(0, -1),'Down':(0, 1),'Left':(-1, 0),'Right':(1, 0)}
+        #increment worker in direction
         worker = addCoords(worker,possibleMoves[action])
         newBoxes = []
+        #then check if new worker position is in box, if it is, push box
         for box in boxes:
             tempBox = box
             if worker == box:
-                tempBox = addCoords(box,possibleMoves[action])
+                tempBox = addCoords(box,possibleMoves[action]) #push box
             newBoxes.append(tempBox)
 
         return (worker,tuple(newBoxes))
@@ -135,13 +139,14 @@ class SokobanPuzzleMacro(SokobanPuzzle):
     def actions(self, state):
         """
         Builds a list of actions that can be taken from a given state. Actions
-        are string variables that correspond to cardinal directions possible
-        for the worker to move.
+        are string variables that correspond to chains of cardinal directions
+        possible for the worker to move.
         state: tuple list of form ((x_w,y_w),((x1,y1),(x2,y2)...(xn,yn)))
         state[0] corresponds to the worker location
         state[1] corresponds to a list of box locations
         returns: string list of possible directions to move the worker
-        ['Left','Right','Up','Down']
+        D = Down, L = Left, R = Right, U = Up
+        example possible: ['DDD','DD','D','R','UU','U']
         """
         worker = state[0]
         boxes = state[1]
@@ -151,14 +156,18 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         count = 0
         boxMove = 0
         elementaryMoves = {(0, -1):'U',(0, 1):'D',(-1, 0):'L',(1, 0):'R'}
+        #check every possible move
         for move in elementaryMoves:
             extendWorker = addCoords(move,worker)
+            #keep extending worker until wall or box is hit, if box is hit, push
+            #box until it contacts the wall or another box
             while extendWorker not in walls and boxMove is not 2:
                 if extendWorker in boxes:
                     boxMove = boxMove + 1
                 count = count + 1
                 extendWorker = addCoords(move,extendWorker)
-            count = count - boxMove
+            count = count - boxMove #0 if no boxes in line, 1 if 1 box, 2 if 2 boxes
+            #create string of actions
             for i in range(count):
                 tempString = ''
                 for j in range(i+1):
@@ -184,25 +193,16 @@ class SokobanPuzzleMacro(SokobanPuzzle):
         possibleMoves = {'U':(0, -1),'D':(0, 1),'L':(-1, 0),'R':(1, 0)}
         newBoxes = list(boxes)
         count = 0
+        #for every character in an action, ie DDD = Down, Down, Down
         for move in action:
             worker = addCoords(worker,possibleMoves[move])
             for box in newBoxes:
                 tempBox = box
-                if worker == box:
+                if worker == box: #if worker is on top of a box, push the box
                     tempBox = addCoords(box,possibleMoves[move])
                     newBoxes.append(tempBox)
                     newBoxes.remove(box)
-                    continue
-            # count += 1
-
-        # totalMove = tuple([x*count for x in possibleMoves[action[0]]])
-        # newWorker = addCoords(worker,totalMove)
-        # newBoxes = []
-        # for box in boxes:
-        #     temp = box
-        #     if inMovement(box,worker,possibleMoves[action[0]],count):
-        #         temp = addCoords(newWorker,possibleMoves[action[0]])
-        #     newBoxes.append(temp)
+                    continue #no other box should be in line, can stop iterating
 
         return (worker,tuple(newBoxes))
 
@@ -372,25 +372,29 @@ def static_taboo_corners(walls,targets):
     #analyze each cell and check diagonal cells
     taboo = []
     for (x,y) in walls:
+        # check bottom right diagonal
         if (x+1,y+1) in walls:
-            if(x+1,y) not in taboo:
+            if(x+1,y) not in taboo: #append shared grid square
                 taboo.append(tuple((x+1,y)))
-            if(x,y+1) not in taboo:
+            if(x,y+1) not in taboo: #append shared grid square
                 taboo.append(tuple((x,y+1)))
+        # check top right diagonal
         if (x+1,y-1) in walls:
-            if(x+1,y) not in taboo:
+            if(x+1,y) not in taboo: #append shared grid square
                 taboo.append(tuple((x+1,y)))
-            if(x,y-1) not in taboo:
+            if(x,y-1) not in taboo: #append shared grid square
                 taboo.append(tuple((x,y-1)))
+        # check bottom left diagonal
         if (x-1,y+1) in walls:
-            if(x-1,y) not in taboo:
+            if(x-1,y) not in taboo: #append shared grid square
                 taboo.append(tuple((x-1,y)))
-            if(x,y+1) not in taboo:
                 taboo.append(tuple((x,y+1)))
+                if(x,y+1) not in taboo: #append shared grid square
+        # check bottom right diagonal
         if (x-1,y-1) in walls:
-            if(x-1,y) not in taboo:
+            if(x-1,y) not in taboo: #append shared grid square
                 taboo.append(tuple((x-1,y)))
-            if(x,y-1) not in taboo:
+            if(x,y-1) not in taboo: #append shared grid square
                 taboo.append(tuple((x,y-1)))
 
     #remove any taboo cells that are also a wall
@@ -586,7 +590,6 @@ def solveSokoban_macro(puzzleFileName, timeLimit = None):
             For example, ['Left', 'Down', Down','Right', 'Up', 'Down']
             If the puzzle is already in a goal state, simply return []
     '''
-    print "Warning: Macro solution does not currently arrive at the solution"
     puzzle = SokobanPuzzleMacro(puzzleFileName)
     if(puzzle.goal_test(puzzle.initial)):
         return []
@@ -688,14 +691,12 @@ def test_elementary():
     print path
 def test_macro():
     filename = "warehouses/warehouse_03.txt"
-    puzzle = SokobanPuzzleMacro(filename)
-    sol = cab320_search.astar_search(puzzle,lambda n:puzzle.h(n))
-    print puzzle.warehouse.visualize()
-    puzzle.print_solution(sol)
+    path = solveSokoban_macro(filename)
+    print path
 if __name__ == "__main__":
-    compare_solutions()
+    #compare_solutions()
     # runSolver()
     # test_elementary()
-    # test_macro()
+    test_macro()
     #test_taboo()
     # testPuzzle("warehouses/warehouse_43.txt")
