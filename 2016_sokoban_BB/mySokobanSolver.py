@@ -698,6 +698,7 @@ def test_macro():
     path = solveSokoban_macro(filename)
     print path
 if __name__ == "__main__":
+    print "this is me testing github"
     compare_solutions()
     # runSolver()
     # test_elementary()
